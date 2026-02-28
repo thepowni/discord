@@ -31,6 +31,13 @@ class MyBot(commands.Bot):
                 except Exception as e:
                     print(f'Failed to load extension {filename}: {e}')
 
+        # Syncing commands
+        try:
+            synced = await self.tree.sync()
+            print(f"Synced {len(synced)} command(s)")
+        except Exception as e:
+            print(f"Failed to sync commands: {e}")
+
     async def on_ready(self):
         print(f'Logged in as {self.user} (ID: {self.user.id})')
         print('------')

@@ -35,7 +35,9 @@ def get_guild_data(guild_id):
             "voice_settings": {
                 "category_id": None,
                 "interface_channel_id": None
-            }
+            },
+            "greet_channel": None,
+            "greet_message": "Welcome {member.mention} to the server!"
         }
         save_data(data)
     return data["guilds"][guild_id]

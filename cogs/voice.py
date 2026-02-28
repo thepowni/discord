@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from discord import ui
+from discord import ui, app_commands
 from utils.data_manager import get_guild_data, update_guild_data
 
 class VoiceRenameModal(ui.Modal, title="Rename Your Voice Channel"):
@@ -43,20 +43,37 @@ class Voice(commands.Cog):
     @commands.command(name="setup_voice")
     @commands.has_permissions(administrator=True)
     async def setup_voice(self, ctx):
-        try:
-            category = await ctx.guild.create_category("Temporary Voice")
-            interface_channel = await ctx.guild.create_voice_channel("Join to Create", category=category)
+        await self._perform_setup(ctx)
 
-            update_guild_data(ctx.guild.id, "voice_settings", {
+    @app_commands.command(name="setup_voice", description="Setup temporary voice channel system")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def slash_setup_voice(self, interaction: discord.Interaction):
+        await self._perform_setup(interaction)
+
+    async def _perform_setup(self, target):
+        guild = target.guild
+        try:
+            category = await guild.create_category("Temporary Voice")
+            interface_channel = await guild.create_voice_channel("Join to Create", category=category)
+
+            update_guild_data(guild.id, "voice_settings", {
                 "category_id": category.id,
                 "interface_channel_id": interface_channel.id
             })
 
             embed = discord.Embed(title="Voice Control Panel", description="Use the buttons below to manage your temporary voice channel.", color=discord.Color.blue())
-            await ctx.send(embed=embed, view=VoicePanel())
-            await ctx.send(f"Voice setup complete. Join {interface_channel.mention} to create a private channel.")
+
+            if isinstance(target, commands.Context):
+                await target.send(embed=embed, view=VoicePanel())
+                await target.send(f"Voice setup complete. Join {interface_channel.mention} to create a private channel.")
+            else:
+                await target.response.send_message(f"Voice setup complete. Join {interface_channel.mention} to create a private channel.", embed=embed, view=VoicePanel())
         except discord.Forbidden:
-            await ctx.send("I don't have permission to create channels/categories.")
+            msg = "I don't have permission to create channels/categories."
+            if isinstance(target, commands.Context):
+                await target.send(msg)
+            else:
+                await target.response.send_message(msg, ephemeral=True)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -65,22 +82,21 @@ class Voice(commands.Cog):
         interface_id = voice_settings.get("interface_channel_id")
 
         if after.channel and after.channel.id == interface_id:
-            category = self.bot.get_channel(voice_settings.get("category_id"))
+            category_id = voice_settings.get("category_id")
+            category = self.bot.get_channel(category_id) if category_id else None
             try:
                 channel = await member.guild.create_voice_channel(name=f"{member.name}'s Room", category=category)
                 await member.move_to(channel)
                 self.temp_channels[member.id] = channel.id
             except discord.Forbidden:
-                pass # Silently fail or send a message to a log channel
+                pass
 
         if before.channel and before.channel.id in self.temp_channels.values():
             if len(before.channel.members) == 0:
                 try:
                     await before.channel.delete()
                     self.temp_channels = {k: v for k, v in self.temp_channels.items() if v != before.channel.id}
-                except discord.NotFound:
-                    pass
-                except discord.Forbidden:
+                except (discord.NotFound, discord.Forbidden):
                     pass
 
 async def setup(bot):

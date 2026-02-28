@@ -6,7 +6,8 @@ from utils.data_manager import get_guild_data
 class Security(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.antispam_cooldown = commands.CooldownMapping.from_tuple(5, 10, commands.BucketType.member)
+        # discord.py v2 uses from_cooldown
+        self.antispam_cooldown = commands.CooldownMapping.from_cooldown(5, 10, commands.BucketType.member)
         self.url_regex = re.compile(r'https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+')
 
     @commands.Cog.listener()
@@ -21,8 +22,11 @@ class Security(commands.Cog):
         if security.get("anti_link"):
             if self.url_regex.search(message.content):
                 if not message.author.guild_permissions.manage_messages:
-                    await message.delete()
-                    await message.channel.send(f"{message.author.mention}, links are not allowed here!", delete_after=3)
+                    try:
+                        await message.delete()
+                        await message.channel.send(f"{message.author.mention}, links are not allowed here!", delete_after=3)
+                    except discord.Forbidden:
+                        pass
                     return
 
         # Anti-spam
@@ -31,8 +35,11 @@ class Security(commands.Cog):
             retry_after = bucket.update_rate_limit()
             if retry_after:
                 if not message.author.guild_permissions.manage_messages:
-                    await message.delete()
-                    await message.channel.send(f"{message.author.mention}, stop spamming!", delete_after=3)
+                    try:
+                        await message.delete()
+                        await message.channel.send(f"{message.author.mention}, stop spamming!", delete_after=3)
+                    except discord.Forbidden:
+                        pass
                     # Optionally timeout the user
                     # await message.author.timeout(datetime.timedelta(minutes=5), reason="Spamming")
 

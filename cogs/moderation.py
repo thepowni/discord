@@ -13,11 +13,23 @@ class Moderation(commands.Cog):
         await member.kick(reason=reason)
         await ctx.send(f'Member {member.mention} has been kicked. Reason: {reason}')
 
+    @app_commands.command(name="slash_kick", description="Kick a member from the server")
+    @app_commands.checks.has_permissions(kick_members=True)
+    async def slash_kick(self, interaction: discord.Interaction, member: discord.Member, reason: str = None):
+        await member.kick(reason=reason)
+        await interaction.response.send_message(f'Member {member.mention} has been kicked. Reason: {reason}')
+
     @commands.command(name="ban")
     @commands.has_permissions(ban_members=True)
     async def ban(self, ctx, member: discord.Member, *, reason=None):
         await member.ban(reason=reason)
         await ctx.send(f'Member {member.mention} has been banned. Reason: {reason}')
+
+    @app_commands.command(name="slash_ban", description="Ban a member from the server")
+    @app_commands.checks.has_permissions(ban_members=True)
+    async def slash_ban(self, interaction: discord.Interaction, member: discord.Member, reason: str = None):
+        await member.ban(reason=reason)
+        await interaction.response.send_message(f'Member {member.mention} has been banned. Reason: {reason}')
 
     @commands.command(name="unban")
     @commands.has_permissions(ban_members=True)
@@ -26,11 +38,24 @@ class Moderation(commands.Cog):
         await ctx.guild.unban(user)
         await ctx.send(f'User {user.name} has been unbanned.')
 
+    @app_commands.command(name="slash_unban", description="Unban a member from the server")
+    @app_commands.checks.has_permissions(ban_members=True)
+    async def slash_unban(self, interaction: discord.Interaction, member_id: str):
+        user = await self.bot.fetch_user(int(member_id))
+        await interaction.guild.unban(user)
+        await interaction.response.send_message(f'User {user.name} has been unbanned.')
+
     @commands.command(name="clear")
     @commands.has_permissions(manage_messages=True)
     async def clear(self, ctx, amount: int):
         await ctx.channel.purge(limit=amount + 1)
         await ctx.send(f'Cleared {amount} messages.', delete_after=5)
+
+    @app_commands.command(name="slash_clear", description="Clear a specified amount of messages")
+    @app_commands.checks.has_permissions(manage_messages=True)
+    async def slash_clear(self, interaction: discord.Interaction, amount: int):
+        await interaction.channel.purge(limit=amount)
+        await interaction.response.send_message(f'Cleared {amount} messages.', ephemeral=True)
 
     @commands.command(name="timeout")
     @commands.has_permissions(moderate_members=True)
@@ -38,6 +63,13 @@ class Moderation(commands.Cog):
         duration = datetime.timedelta(minutes=minutes)
         await member.timeout(duration, reason=reason)
         await ctx.send(f'Member {member.mention} has been timed out for {minutes} minutes. Reason: {reason}')
+
+    @app_commands.command(name="slash_timeout", description="Timeout a member")
+    @app_commands.checks.has_permissions(moderate_members=True)
+    async def slash_timeout(self, interaction: discord.Interaction, member: discord.Member, minutes: int, reason: str = None):
+        duration = datetime.timedelta(minutes=minutes)
+        await member.timeout(duration, reason=reason)
+        await interaction.response.send_message(f'Member {member.mention} has been timed out for {minutes} minutes. Reason: {reason}')
 
 async def setup(bot):
     await bot.add_cog(Moderation(bot))
