@@ -8,7 +8,7 @@ module.exports = {
 	async execute(message) {
 		if (message.author.bot || !message.guild) return;
 
-		const data = getGuildData(message.guild.id);
+		const data = await getGuildData(message.guild.id);
 		const { security } = data;
 
 		// Anti-link

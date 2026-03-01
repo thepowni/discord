@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 const DATA_FILE = path.join(__dirname, '../../data.json');
@@ -7,25 +7,25 @@ const defaultData = {
     guilds: {}
 };
 
-function loadData() {
-    if (!fs.existsSync(DATA_FILE)) {
-        saveData(defaultData);
-        return defaultData;
-    }
+async function loadData() {
     try {
-        const raw = fs.readFileSync(DATA_FILE);
+        const raw = await fs.readFile(DATA_FILE, 'utf8');
         return JSON.parse(raw);
     } catch (e) {
+        if (e.code === 'ENOENT') {
+            await saveData(defaultData);
+            return defaultData;
+        }
         return defaultData;
     }
 }
 
-function saveData(data) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 4));
+async function saveData(data) {
+    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 4));
 }
 
-function getGuildData(guildId) {
-    const data = loadData();
+async function getGuildData(guildId) {
+    const data = await loadData();
     if (!data.guilds[guildId]) {
         data.guilds[guildId] = {
             security: {
@@ -38,20 +38,25 @@ function getGuildData(guildId) {
                 categoryId: null,
                 interfaceChannelId: null
             },
-            modLogsChannel: null
+            tempChannels: {} // memberId: channelId
         };
-        saveData(data);
+        await saveData(data);
     }
     return data.guilds[guildId];
 }
 
-function updateGuildData(guildId, key, value) {
-    const data = loadData();
+async function updateGuildData(guildId, key, value) {
+    const data = await loadData();
     if (!data.guilds[guildId]) {
-        getGuildData(guildId);
+        await getGuildData(guildId);
+        // Refresh data after creation
+        const refreshedData = await loadData();
+        refreshedData.guilds[guildId][key] = value;
+        await saveData(refreshedData);
+    } else {
+        data.guilds[guildId][key] = value;
+        await saveData(data);
     }
-    data.guilds[guildId][key] = value;
-    saveData(data);
 }
 
 module.exports = {

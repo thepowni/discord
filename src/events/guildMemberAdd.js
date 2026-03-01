@@ -1,10 +1,10 @@
 const { Events, EmbedBuilder } = require('discord.js');
-const { getGuildData } = require('../utils/dataManager');
+const { getGuildData, updateGuildData } = require('../utils/dataManager');
 
 module.exports = {
 	name: Events.GuildMemberAdd,
 	async execute(member) {
-		const data = getGuildData(member.guild.id);
+		const data = await getGuildData(member.guild.id);
 		if (!data.greetChannel) return;
 
 		const channel = member.guild.channels.cache.get(data.greetChannel);

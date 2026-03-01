@@ -1,14 +1,13 @@
-const { Events, ChannelType } = require('discord.js');
-const { getGuildData } = require('../utils/dataManager');
-
-const tempChannels = new Map(); // memberId: channelId
+const { Events, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { getGuildData, updateGuildData } = require('../utils/dataManager');
 
 module.exports = {
 	name: Events.VoiceStateUpdate,
 	async execute(oldState, newState) {
 		const { member, guild } = newState;
-		const data = getGuildData(guild.id);
+		const data = await getGuildData(guild.id);
 		const { voiceSettings } = data;
+        const tempChannels = data.tempChannels || {};
 
 		if (!voiceSettings.interfaceChannelId) return;
 
@@ -19,22 +18,30 @@ module.exports = {
 				name: `${member.displayName}'s Room`,
 				type: ChannelType.GuildVoice,
 				parent: category || null,
+                permissionOverwrites: [
+                    {
+                        id: member.id,
+                        allow: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.MuteMembers, PermissionFlagsBits.DeafenMembers, PermissionFlagsBits.MoveMembers],
+                    }
+                ]
 			});
 
 			await member.voice.setChannel(channel);
-			tempChannels.set(member.id, channel.id);
+			tempChannels[member.id] = channel.id;
+            await updateGuildData(guild.id, 'tempChannels', tempChannels);
 		}
 
-		// Leave to delete
-		if (oldState.channelId && !newState.channelId) {
+		// Cleanup empty temporary channels (regardless of where the user moved to)
+		if (oldState.channelId && oldState.channelId !== newState.channelId) {
             const channel = oldState.channel;
-            if ([...tempChannels.values()].includes(channel.id)) {
+            // Check if this channel is in our temporary channels list
+            if (Object.values(tempChannels).includes(channel.id)) {
                 if (channel.members.size === 0) {
                     await channel.delete().catch(() => {});
-                    // Clean up map
-                    for (let [mId, cId] of tempChannels.entries()) {
-                        if (cId === channel.id) tempChannels.delete(mId);
-                    }
+                    // Clean up data
+                    const ownerId = Object.keys(tempChannels).find(key => tempChannels[key] === channel.id);
+                    if (ownerId) delete tempChannels[ownerId];
+                    await updateGuildData(guild.id, 'tempChannels', tempChannels);
                 }
             }
 		}

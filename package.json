@@ -1,7 +1,7 @@
 {
-  "name": "fastest-discord-bot",
+  "name": "modern-discord-bot-v14",
   "version": "1.0.0",
-  "description": "A high-performance multi-functional Discord bot using v14 API.",
+  "description": "A feature-rich, high-performance Discord bot using v14 API.",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
